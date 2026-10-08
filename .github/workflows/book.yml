@@ -12,7 +12,7 @@ on:
 jobs:
   book:
     name: Book
-    if: github.repository == 'salsa-rs/salsa'
+    if: github.repository == 'bit-aloo/salsa'
     runs-on: ubuntu-latest
     env:
       MDBOOK_VERSION: "0.4.40"
@@ -43,7 +43,7 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     needs: book
-    if: github.repository == 'salsa-rs/salsa' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.repository == 'bit-aloo/salsa' && github.event_name == 'push' && github.ref == 'refs/heads/master'
     concurrency:
       group: github-pages
       cancel-in-progress: true
