@@ -10,7 +10,7 @@ In addition to regular Rust types, we will make use of various **Salsa structs**
 A Salsa struct is a struct that has been annotated with one of the Salsa annotations:
 
 - [`#[salsa::input]`](#input-structs), which designates the "base inputs" to your computation;
-- [`#[salsa::tracked]`](#tracked-structs), which designate intermediate values created during your computation;
+- [`#[salsa::tracked]`](#representing-the-parsed-program), which designate intermediate values created during your computation;
 - [`#[salsa::interned]`](#interned-structs), which designate small values that are easy to compare for equality.
 
 All Salsa structs store the actual values of their fields in the Salsa database.
@@ -116,7 +116,7 @@ because the user changed the definition of `f`.
 This would mean that we have to re-execute those parts of the code that depended on `f.body`
 (but not those parts of the code that depended on the body of _other_ functions).
 
-Apart from having no setters, the API for working with a tracked struct is quite similar to an input:
+As with `Program`:
 
 - You can create a new value by using `new`: e.g., `Function::new(&db, some_name, some_name_span, some_args, some_body)`
 - You use a getter to read the value of a field, just like with an input (e.g., `my_func.args(db)` to read the `args` field).
@@ -176,4 +176,23 @@ Since statements and expressions are not tracked, this implies that we are only 
 whenever anything in a function body changes, we consider the entire function body dirty and re-execute anything that depended on it.
 It usually makes sense to draw some kind of "reasonably coarse" boundary like this.
 
-One downside of the way we have set things up: we inlined the position into each of the structs.
+### Spans
+
+Each statement and expression records where it appears in the source text, so that errors can point at it.
+Positions are stored in a `Span`, which is another tracked struct:
+
+```rust
+{{#include ../../../examples/calc/ir.rs:span}}
+```
+
+Storing positions inside the IR has a downside:
+typing a single character near the start of the file shifts the position of everything after it.
+If the positions were stored directly in each `Expression`, almost every expression would compare unequal after such an edit,
+and every function would look changed.
+
+Making `Span` a tracked struct limits the damage.
+`Span` has no identity fields, so Salsa matches up the spans created by the parser in order:
+the first span in the new revision gets the same ID as the first span in the previous revision, and so on.
+An `Expression` stores only the span's ID, so it still compares equal after positions shift.
+Only the `start` and `end` fields of the span change,
+so only queries that read those fields (such as error reporting) are affected.

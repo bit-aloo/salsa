@@ -8,6 +8,10 @@ Input queries are set explicitly by the user. `maybe_changed_after` can therefor
 
 ## Interned queries
 
+Interned values never change in place.
+`maybe_changed_after` reports a change only if the value's slot was garbage-collected and reused for a different value, which Salsa detects from the generation stored in the `Id`.
+Otherwise, it records that the value was used in the current revision and reports it as unchanged.
+
 ## Derived queries
 
 The logic for derived queries is more complex. We summarize the high-level ideas here, but you may find the [flowchart](./derived_flowchart.md) useful to dig deeper. The [terminology](./terminology.md) section may also be useful; in some cases, we link to that section on the first usage of a word.
@@ -20,8 +24,9 @@ The logic for derived queries is more complex. We summarize the high-level ideas
     * If no dependency was modified:
         * We can mark the memo as verified and use its [changed at] revision to return true or false.
 * Assuming dependencies have been modified:
-    * Then we execute the user's query function (same as in [fetch]), which potentially [backdates] the resulting value.
-    * Compare the [changed at] revision in the resulting memo and return true or false.
+    * If the old memo still has a value (it was not evicted by [LRU]) and is not a provisional cycle result, we execute the user's query function (same as in [fetch]), which potentially [backdates] the resulting value.
+      We then compare the [changed at] revision in the resulting memo and return true or false.
+    * Otherwise, we conservatively report that the value may have changed, without executing the query function.
 
 [changed at]: ./terminology/changed_at.md
 [durability]: ./terminology/durability.md

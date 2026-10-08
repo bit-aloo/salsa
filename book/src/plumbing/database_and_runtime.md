@@ -52,7 +52,7 @@ The key point is that Salsa cancels other workers before proceeding:
 ## The Salsa runtime
 
 The salsa runtime offers helper methods that are accessed by the ingredients.
-It tracks the current revision and information about when values with low or high durability last changed.
+It tracks the current revision and the revision in which inputs of each durability level last changed.
 Its cross-thread dependency graph is used for [resolving cycles](./cycles.md).
 
 Basically, the ingredient structures store the "data at rest" -- like memoized values -- and things that are "per ingredient".

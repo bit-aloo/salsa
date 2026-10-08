@@ -26,7 +26,7 @@ impl Default for CalcDatabaseImpl {
                     if let Some(logs) = &mut *logs.lock().unwrap() {
                         // only log interesting events
                         if let salsa::EventKind::WillExecute { .. } = event.kind {
-                            logs.push(format!("Event: {event:?}"));
+                            logs.push(format!("{:?}", event.kind));
                         }
                     }
                 }

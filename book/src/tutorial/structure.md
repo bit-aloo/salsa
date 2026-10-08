@@ -8,11 +8,16 @@ Part of Salsa's design is that you are able to write programs that feel 'pretty 
 This is our example calc program:
 
 ```
-x = 5
-y = 10
-z = x + y * 3
-print z
+fn area_rectangle(w, h) = w * h
+fn area_circle(r) = 3.14 * r * r
+print area_rectangle(3, 4)
+print area_circle(1)
+print 11 * 2
 ```
+
+A program is a list of statements.
+A `fn` statement defines a function whose body is a single expression over its parameters,
+and a `print` statement evaluates an expression and prints the result.
 
 ## Parser
 
@@ -71,13 +76,16 @@ type VariableId = /* interned string */;
 
 ## Checker
 
-The "checker" has the job of ensuring that the user only references variables that have been defined.
-We're going to write the checker in a "context-less" style,
-which is a bit less intuitive but allows for more incremental re-use.
-The idea is to compute, for a given expression, which variables it references.
-Then there is a function `check` which ensures that those variables are a subset of those that are already defined.
+The "checker" has the job of ensuring that the user only references variables and functions that have been defined.
+It checks each function definition separately, so that when one function changes,
+only that function needs to be checked again.
 
 ## Interpreter
 
 The interpreter will execute the program and print the result. We don't bother with much incremental re-use here,
 though it's certainly possible.
+
+## Driver
+
+Finally, a small `main` function ties everything together:
+it creates the database, supplies the source text, reports any errors, and prints the program's output.

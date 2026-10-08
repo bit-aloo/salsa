@@ -8,7 +8,7 @@ Input queries simply load the result from the table.
 
 ## Interned queries
 
-Interned queries map the input into a hashmap to find an existing integer. If none is present, a new value is created.
+Interned queries map the input into a hashmap to find an existing integer. If none is present, a new value is created, possibly reusing the slot of a stale, low-durability value with a new `Id` generation (unless the struct uses `revisions = usize::MAX`).
 
 ## Derived queries
 

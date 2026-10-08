@@ -4,8 +4,10 @@
 
 The interface for blocking across threads now works as follows:
 
-* When one thread `T1` wishes to block on a query `Q` being executed by another thread `T2`, it invokes `Runtime::block`. This checks for cycles and, assuming no cycle is detected, returns `BlockResult::Running`. Calling `Running::block_on` then blocks `T1` until `T2` has completed with `Q`. At that point, `T1` reawakens. However, we don't know the result of executing `Q`, so `T1` now has to "retry". Typically, this will result in successfully reading the cached value.
+* When one thread `T1` wishes to block on a query `Q` being executed by another thread `T2`, it invokes `Runtime::block`. This checks for cycles and, assuming no cycle is detected, returns `BlockResult::Running`. Calling `Running::block_on` then blocks `T1` until `T2` has completed with `Q`. At that point, `T1` reawakens. However, we don't know the result of executing `Q`, so `T1` now has to "retry". Typically, this will result in successfully reading the cached value. If `T2` panicked while executing `Q`, `T1` unwinds with `Cancelled::PropagatedPanic` instead.
 * While `T1` is blocking, its active query stack remains with the database handle.
+* The locks that mark a query as "in progress" live in a per-function `SyncTable`, which is sharded by key so that threads executing unrelated queries do not contend.
+* During fixpoint iteration, ownership of a cycle head's lock can be transferred to the thread that owns an outer cycle head. A thread blocked on such a query then waits for the new owner (`BlockTransferredResult`), so the whole cycle completes as a unit.
 
 ## Cycle detection
 
