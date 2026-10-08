@@ -8,7 +8,7 @@ use crate::ir::{
     Diagnostic, Expression, Function, FunctionId, Program, Span, StatementData, VariableId,
 };
 
-// ANCHOR: parse_statements
+// ANCHOR: type_check_program
 #[salsa::tracked(returns(copy))]
 pub fn type_check_program<'db>(db: &'db dyn crate::Db, program: Program<'db>) {
     for statement in program.statements(db) {
@@ -27,7 +27,9 @@ pub fn type_check_function<'db>(
 ) {
     CheckExpression::new(db, program, function.args(db)).check(function.body(db))
 }
+// ANCHOR_END: type_check_program
 
+// ANCHOR: find_function
 #[salsa::tracked(returns(copy))]
 pub fn find_function<'db>(
     db: &'db dyn crate::Db,
@@ -43,7 +45,9 @@ pub fn find_function<'db>(
         })
         .next()
 }
+// ANCHOR_END: find_function
 
+// ANCHOR: check_expression
 struct CheckExpression<'input, 'db> {
     db: &'db dyn crate::Db,
     program: Program<'db>,
@@ -94,13 +98,17 @@ impl<'db> CheckExpression<'_, 'db> {
         }
     }
 
+    // ANCHOR_END: check_expression
+
     fn find_function(&self, f: FunctionId<'db>) -> Option<Function<'db>> {
         find_function(self.db, self.program, f)
     }
 
+    // ANCHOR: report_error
     fn report_error(&self, span: Span, message: String) {
         Diagnostic::new(span.start(self.db), span.end(self.db), message).accumulate(self.db);
     }
+    // ANCHOR_END: report_error
 }
 
 /// Create a new database with the given source text and parse the result.
@@ -157,24 +165,26 @@ fn check_print() {
     check_string("print 1 + 2", expect![""], &[]);
 }
 
+// ANCHOR: check_bad_variable_in_program
 #[test]
 fn check_bad_variable_in_program() {
     check_string(
         "print a + b",
         expect![[r#"
             error: the variable `a` is not declared
-             --> input:2:7
+             --> input:1:7
               |
-            2 | print a + b
-              |       ^^ here
+            1 | print a + b
+              |       ^ here
             error: the variable `b` is not declared
-             --> input:2:11
+             --> input:1:11
               |
-            2 | print a + b
+            1 | print a + b
               |           ^ here"#]],
         &[],
     );
 }
+// ANCHOR_END: check_bad_variable_in_program
 
 #[test]
 fn check_bad_function_in_program() {
@@ -182,9 +192,9 @@ fn check_bad_function_in_program() {
         "print a(22)",
         expect![[r#"
             error: the function `a` is not declared
-             --> input:2:7
+             --> input:1:7
               |
-            2 | print a(22)
+            1 | print a(22)
               |       ^^^^^ here"#]],
         &[],
     );
@@ -199,12 +209,10 @@ fn check_bad_variable_in_function() {
         ",
         expect![[r#"
             error: the variable `b` is not declared
-             --> input:4:33
+             --> input:2:33
               |
-            4 |               fn add_one(a) = a + b
-              |  _________________________________^
-            5 | |             print add_one(22)
-              | |____________^ here"#]],
+            2 |             fn add_one(a) = a + b
+              |                                 ^ here"#]],
         &[],
     );
 }
@@ -218,17 +226,15 @@ fn check_bad_function_in_function() {
         ",
         expect![[r#"
             error: the function `add_two` is not declared
-             --> input:4:29
+             --> input:2:29
               |
-            4 |             fn add_one(a) = add_two(a) + b
+            2 |             fn add_one(a) = add_two(a) + b
               |                             ^^^^^^^^^^ here
             error: the variable `b` is not declared
-             --> input:4:42
+             --> input:2:42
               |
-            4 |               fn add_one(a) = add_two(a) + b
-              |  __________________________________________^
-            5 | |             print add_one(22)
-              | |____________^ here"#]],
+            2 |             fn add_one(a) = add_two(a) + b
+              |                                          ^ here"#]],
         &[],
     );
 }
@@ -243,12 +249,10 @@ fn fix_bad_variable_in_function() {
         ",
         expect![[r#"
             error: the variable `b` is not declared
-             --> input:4:32
+             --> input:2:32
               |
-            4 |               fn double(a) = a * b
-              |  ________________________________^
-            5 | |             fn quadruple(a) = double(double(a))
-              | |____________^ here"#]],
+            2 |             fn double(a) = a * b
+              |                                ^ here"#]],
         &[(
             "
                 fn double(a) = a * 2
@@ -261,3 +265,49 @@ fn fix_bad_variable_in_function() {
         )],
     );
 }
+
+// ANCHOR: check_reuse
+#[test]
+fn check_reuses_unchanged_functions() {
+    use salsa::Setter;
+
+    use crate::db::CalcDatabaseImpl;
+    use crate::ir::SourceProgram;
+    use crate::parser::parse_statements;
+
+    let mut db = CalcDatabaseImpl::default();
+    let source_program = SourceProgram::new(
+        &db,
+        "
+            fn double(a) = a * 2
+            fn quadruple(a) = double(double(a))
+            print quadruple(2)
+        "
+        .to_string(),
+    );
+    let program = parse_statements(&db, source_program);
+    type_check_program(&db, program);
+
+    // Edit the body of `double`, keeping the rest of the program unchanged.
+    source_program.set_text(&mut db).to("
+            fn double(a) = a * 3
+            fn quadruple(a) = double(double(a))
+            print quadruple(2)
+        "
+    .to_string());
+    db.enable_logging();
+    let program = parse_statements(&db, source_program);
+    type_check_program(&db, program);
+
+    // The parser re-runs, but it produces equal `statements` (only the body of
+    // `double` changed), so `type_check_program` is not re-executed. Salsa still
+    // re-checks `double`, whose `body` changed, but not `quadruple`.
+    expect![[r#"
+        [
+            "WillExecute { database_key: parse_statements(Id(0)) }",
+            "WillExecute { database_key: type_check_function(Id(300)) }",
+        ]
+    "#]]
+    .assert_debug_eq(&db.take_logs());
+}
+// ANCHOR_END: check_reuse

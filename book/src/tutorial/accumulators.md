@@ -4,7 +4,7 @@ The last interesting case in the parser is how to handle a parse error.
 Because Salsa functions are memoized and may not execute, they should not have side-effects,
 so we don't just want to call `eprintln!`.
 If we did so, the error would only be reported the first time the function was called, but not
-on subsequent calls in the situation where the simply returns its memoized value.
+on subsequent calls, when the function simply returns its memoized value.
 
 Salsa defines a mechanism for managing this called an **accumulator**.
 In our case, we define an accumulator struct called `Diagnostic` in the `ir` module:

@@ -215,6 +215,8 @@ impl<'db> Parser<'_, 'db> {
     fn parse_expression2(&mut self) -> Option<Expression<'db>> {
         let start_position = self.skip_whitespace();
         if let Some(w) = self.word() {
+            // Remember where the word ended, since `ch` skips whitespace even on failure.
+            let word_end = self.position;
             if self.ch('(').is_some() {
                 let f = FunctionId::new(self.db, w);
                 let args = self.parse_expressions()?;
@@ -225,6 +227,7 @@ impl<'db> Parser<'_, 'db> {
                 ));
             }
 
+            self.position = word_end;
             let v = VariableId::new(self.db, w);
             Some(Expression::new(
                 self.span_from(start_position),
@@ -459,14 +462,14 @@ fn parse_example() {
                                     span: Span {
                                         [salsa id]: Id(88),
                                         start: 39,
-                                        end: 57,
+                                        end: 44,
                                     },
                                     data: Op(
                                         Expression {
                                             span: Span {
                                                 [salsa id]: Id(85),
                                                 start: 39,
-                                                end: 41,
+                                                end: 40,
                                             },
                                             data: Variable(
                                                 VariableId {
@@ -479,7 +482,7 @@ fn parse_example() {
                                             span: Span {
                                                 [salsa id]: Id(87),
                                                 start: 43,
-                                                end: 57,
+                                                end: 44,
                                             },
                                             data: Variable(
                                                 VariableId {
@@ -518,14 +521,14 @@ fn parse_example() {
                                     span: Span {
                                         [salsa id]: Id(94),
                                         start: 77,
-                                        end: 102,
+                                        end: 89,
                                     },
                                     data: Op(
                                         Expression {
                                             span: Span {
                                                 [salsa id]: Id(91),
                                                 start: 77,
-                                                end: 86,
+                                                end: 85,
                                             },
                                             data: Op(
                                                 Expression {
@@ -543,7 +546,7 @@ fn parse_example() {
                                                     span: Span {
                                                         [salsa id]: Id(90),
                                                         start: 84,
-                                                        end: 86,
+                                                        end: 85,
                                                     },
                                                     data: Variable(
                                                         VariableId {
@@ -558,7 +561,7 @@ fn parse_example() {
                                             span: Span {
                                                 [salsa id]: Id(93),
                                                 start: 88,
-                                                end: 102,
+                                                end: 89,
                                             },
                                             data: Variable(
                                                 VariableId {

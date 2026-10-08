@@ -140,7 +140,7 @@ Tracked functions have to follow a particular structure:
 
 - They must take a `&`-reference to the database as their first argument.
   - Note that because this is an `&`-reference, it is not possible to modify inputs during a tracked function!
-- They may take no other arguments, one Salsa struct, or multiple arguments that implement `Eq` and `Hash`.
+- They may take no other arguments, one Salsa struct, or multiple arguments that implement `Eq`, `Hash`, `Clone`, `Send`, and `Sync` (and `SalsaValue` if they carry the `'db` lifetime).
   A single Salsa struct can be used directly as the query key, whereas multiple arguments are interned together to create a key.
 
 Tracked functions return a reference to their memoized value by default, so callers of `parse_file` receive an `&Ast<'_>`. Use `#[salsa::tracked(returns(clone))]` to clone the value out of the database instead.
@@ -224,6 +224,7 @@ fn create_builtin_item<'db>(db: &'db dyn crate::Db) -> Item<'db> {
 
 Specifying is only possible for tracked functions that take a single tracked struct as an argument (besides the database).
 The call to `specify` must occur in the same tracked-function invocation that created that struct.
+The `specify` and `lru` options cannot be combined.
 
 ## Interned structs
 

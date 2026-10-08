@@ -9,12 +9,13 @@ Tracked structs are created via a `new` operation.
 For a single tracked struct we create multiple ingredients.
 The **tracked struct ingredient** is the ingredient created first.
 It creates new instances of the struct and assigns their ids.
-The corresponding `ValueStruct` data is stored in Salsa's paged table.
+The corresponding `Value` data is stored in Salsa's paged table.
 
 For each `#[tracked]` field, we create a **tracked field ingredient** that moderates access
 to a particular field. All of these ingredients use the same paged table
-to access the `ValueStruct` instance for a given id. The `ValueStruct`
-contains both the field values but also the revisions when they last changed value.
+to access the `Value` for a given id. The `Value`
+contains the field values, the revisions when they last changed value,
+the durability of the query that created the struct, and the struct's memo table.
 
 ## Each tracked struct has an id
 
@@ -26,16 +27,16 @@ Its identity is derived from a combination of
 - a u64 hash of the fields not marked `#[tracked]`;
 - a _disambiguator_ that makes this hash unique within the current query. i.e., when a query starts executing, it creates an empty map, and the first time a tracked struct with a given hash is created, it gets disambiguator 0. The next one will be given 1, etc.
 
-## Each tracked struct has a `ValueStruct` storing its data
+## Each tracked struct has a `Value` storing its data
 
-The struct and field ingredients use the paged table to find the value struct
+The struct and field ingredients use the paged table to find the `Value`
 for a given id:
 
 ```rust,ignore
 {{#include ../../../src/tracked_struct.rs:ValueStruct}}
 ```
 
-The value struct stores the values of the fields but also the revisions when
+The `Value` stores the values of the fields but also the revisions when
 that field last changed. Each time the struct is recreated in a new revision,
 the old and new values for its fields are compared and changed field revisions are updated.
 

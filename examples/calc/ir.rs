@@ -103,6 +103,7 @@ pub struct Function<'db> {
 }
 // ANCHOR_END: functions
 
+// ANCHOR: span
 #[salsa::tracked(debug)]
 pub struct Span<'db> {
     #[tracked]
@@ -112,6 +113,7 @@ pub struct Span<'db> {
     #[returns(copy)]
     pub end: usize,
 }
+// ANCHOR_END: span
 
 // ANCHOR: diagnostic
 #[salsa::accumulator]
@@ -133,13 +135,11 @@ impl Diagnostic {
         }
     }
 
-    #[cfg(test)]
     pub fn render(&self, db: &dyn crate::Db, src: SourceProgram) -> String {
         use annotate_snippets::*;
-        let line_start = src.text(db)[..self.start].lines().count() + 1;
         let report = [Level::ERROR.primary_title(&self.message).element(
             Snippet::source(src.text(db))
-                .line_start(line_start)
+                .line_start(1)
                 .path("input")
                 .fold(true)
                 .annotation(
